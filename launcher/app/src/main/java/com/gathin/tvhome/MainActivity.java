@@ -134,6 +134,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private RecyclerView grid;
     private FrameLayout root;
     private WallpaperPlayer wallpaperPlayer;
+    /** This fork: the theme's videos/ behind Home; null when there are none. */
+    private VideoWallpaper videoWallpaper;
+    /** This fork's own theme keys (greeting_text, video_wallpaper, video_dim). */
+    private HomeExtras extras;
     private GlassView glass;
     private View ambient;
     private TextView heroName;
@@ -415,6 +419,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // the theme's background, so launch looks the same.
         getWindow().setBackgroundDrawable(null);
         wallpaperPlayer = new WallpaperPlayer(this, root, cfg);
+        extras = HomeExtras.load(this);
+        videoWallpaper = extras.videoWallpaper
+                ? VideoWallpaper.create(this, root, cfg.wallpaperRotationMinutes, extras.videoDim) : null;
         sky = findViewById(R.id.sky);
         sky.setIntensity(cfg.skyIntensity);
         glass = findViewById(R.id.glass);
@@ -448,6 +455,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         clockBlock = findViewById(R.id.leftBlock);
         greetingColor = greeting.getCurrentTextColor();
         if (!cfg.showGreeting) greeting.setVisibility(View.GONE);
+        if (!extras.greetingText.isEmpty()) {
+            // greeting_text: "Hola, Natalia" as written, larger and in full white, not the small capitals.
+            greeting.setAllCaps(false);
+            greeting.setLetterSpacing(0f);
+            greeting.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 18);
+            greeting.setTextColor(0xFFFFFFFF);
+            greetingColor = 0xFFFFFFFF;
+        }
         if (cfg.headerWhite) {
             // The clock's own white for the date and the line before it, instead of their dimmed whites.
             ((TextView) findViewById(R.id.date)).setTextColor(Color.WHITE);
@@ -953,6 +968,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (showStats) startStats();
         sky.update();
         wallpaperPlayer.start();
+        if (videoWallpaper != null) videoWallpaper.start();
         handler.postDelayed(minuteTick, MINUTE_MS);
         if (festive && diya != null) {
             diya.start();
@@ -1122,6 +1138,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         root.removeCallbacks(showIdleClock);
         endReorder();   // Home or another app while reordering keeps the order so far
         wallpaperPlayer.stop();
+        if (videoWallpaper != null) videoWallpaper.stop();
         stopAmbientAnimation();
         hero.animate().cancel();
         ambient.animate().cancel();
@@ -1183,6 +1200,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         super.onDestroy();
         unregisterReceiver(packageReceiver);
         wallpaperPlayer.close();
+        if (videoWallpaper != null) videoWallpaper.close();
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
         TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
         if (tim != null) tim.unregisterCallback(inputCallback);
@@ -2438,8 +2456,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             greeting.setText(festiveGreeting);
             greeting.setTextColor(liftTowardsWhite(festival.accentColor(), 0.25f));
         } else {
-            greeting.setText(greetingName.isEmpty() ? getString(res)
-                    : getString(R.string.greeting_with_name, getString(res), greetingName));
+            String hello = extras.greetingText.isEmpty() ? getString(res) : extras.greetingText;
+            greeting.setText(greetingName.isEmpty() ? hello
+                    : getString(R.string.greeting_with_name, hello, greetingName));
             greeting.setTextColor(greetingColor);
         }
         if (shamsi) shamsiDate.setText(Shamsi.today(getResources()));

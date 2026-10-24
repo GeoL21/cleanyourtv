@@ -50,6 +50,12 @@ public class ThemeProvider extends ContentProvider {
             if (images != null) for (File f : images) if (f.delete()) n++;
             return n;
         }
+        if (dir != null && ThemeFiles.isVideoCollection(uri.getPathSegments())) {
+            File[] videos = new File(dir, ThemeFiles.VIDEOS).listFiles((d, name) -> ThemeFiles.video(name));
+            int n = 0;
+            if (videos != null) for (File f : videos) if (f.delete()) n++;
+            return n;
+        }
         try {
             return file(uri).delete() ? 1 : 0;
         } catch (FileNotFoundException e) {
